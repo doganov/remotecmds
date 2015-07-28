@@ -46,6 +46,11 @@ func httpError(w http.ResponseWriter, code int) {
 
 func wrap(c *command) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			httpError(w, http.StatusMethodNotAllowed)
+			return
+		}
+
 		updates <- statusUpdate{c, true}
 		defer func() { updates <- statusUpdate{c, false} }()
 
