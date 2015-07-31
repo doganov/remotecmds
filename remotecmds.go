@@ -15,27 +15,39 @@ import (
 
 var commands []*command
 var updates chan statusUpdate
+var ids chan int
 
 type statusUpdate struct {
+	id int
 	c *command
 	started bool
 }
 
 func main() {
 	updates = make(chan statusUpdate)
+	ids = make(chan int)
 	
 	defineCommands()
+	go generateIds()
 	go manageStatuses()
 	
 	log.Println("Listening...")
 	log.Fatal(http.ListenAndServe("localhost:4000", nil))
 }
 
+func generateIds() {
+	id := 1
+	for {
+		ids <- id
+		id++
+	}
+}
+
 func manageStatuses() {
 	for {
 		select {
 		case update := <-updates:
-			log.Println(update.c.Name, update.started)
+			log.Println(update.id, update.c.Name, update.started)
 		}
 	}
 }
@@ -51,8 +63,11 @@ func wrap(c *command) http.HandlerFunc {
 			return
 		}
 
-		updates <- statusUpdate{c, true}
-		defer func() { updates <- statusUpdate{c, false} }()
+		log.Println("Receiving ID")
+		id := <-ids
+		log.Println("Sending update")
+		updates <- statusUpdate{id, c, true}
+		defer func() { updates <- statusUpdate{id, c, false} }()
 
 		c.Func(w, r)
 	}
