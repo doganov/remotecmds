@@ -62,7 +62,7 @@ func manageStatuses() {
 	for {
 		select {
 		case event := <-events:
-			log.Println(event.id, event.c.Name, event.t)
+			log.Printf("[%d] %s %s", event.id, event.c.Name, event.t)
 		}
 	}
 }
@@ -78,9 +78,7 @@ func wrap(c *command) http.HandlerFunc {
 			return
 		}
 
-		log.Println("Receiving ID")
 		id := <-ids
-		log.Println("Sending update")
 		events <- event{id, c, eventTypeBegin}
 		defer func() { events <- event{id, c, eventTypeEnd} }()
 
