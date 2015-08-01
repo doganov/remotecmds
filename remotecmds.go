@@ -20,7 +20,22 @@ var ids chan int
 type statusUpdate struct {
 	id int
 	c *command
-	started bool
+	t eventType
+}
+
+type eventType int
+
+const (
+	eventTypeBegin = iota
+	eventTypeEnd
+)
+
+func (t eventType) String() string {
+	switch t {
+	case eventTypeBegin: return "begin"
+	case eventTypeEnd: return "end"
+	default: return "UNKNOWN"
+	}
 }
 
 func main() {
@@ -47,7 +62,7 @@ func manageStatuses() {
 	for {
 		select {
 		case update := <-updates:
-			log.Println(update.id, update.c.Name, update.started)
+			log.Println(update.id, update.c.Name, update.t)
 		}
 	}
 }
@@ -66,8 +81,8 @@ func wrap(c *command) http.HandlerFunc {
 		log.Println("Receiving ID")
 		id := <-ids
 		log.Println("Sending update")
-		updates <- statusUpdate{id, c, true}
-		defer func() { updates <- statusUpdate{id, c, false} }()
+		updates <- statusUpdate{id, c, eventTypeBegin}
+		defer func() { updates <- statusUpdate{id, c, eventTypeEnd} }()
 
 		c.Func(w, r)
 	}
