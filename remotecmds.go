@@ -14,10 +14,10 @@ import (
 )
 
 var commands []*command
-var updates chan statusUpdate
+var events chan event
 var ids chan int
 
-type statusUpdate struct {
+type event struct {
 	id int
 	c *command
 	t eventType
@@ -39,7 +39,7 @@ func (t eventType) String() string {
 }
 
 func main() {
-	updates = make(chan statusUpdate)
+	events = make(chan event)
 	ids = make(chan int)
 	
 	defineCommands()
@@ -61,8 +61,8 @@ func generateIds() {
 func manageStatuses() {
 	for {
 		select {
-		case update := <-updates:
-			log.Println(update.id, update.c.Name, update.t)
+		case event := <-events:
+			log.Println(event.id, event.c.Name, event.t)
 		}
 	}
 }
@@ -81,8 +81,8 @@ func wrap(c *command) http.HandlerFunc {
 		log.Println("Receiving ID")
 		id := <-ids
 		log.Println("Sending update")
-		updates <- statusUpdate{id, c, eventTypeBegin}
-		defer func() { updates <- statusUpdate{id, c, eventTypeEnd} }()
+		events <- event{id, c, eventTypeBegin}
+		defer func() { events <- event{id, c, eventTypeEnd} }()
 
 		c.Func(w, r)
 	}
