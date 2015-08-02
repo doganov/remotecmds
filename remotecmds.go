@@ -4,13 +4,28 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 )
 
-var commands []*command
+var commands commandTable
 var events chan event
 var ids chan int
 var statuses chan statusTable
+
+type commandTable []*command
+
+func (t commandTable) Len() int {
+	return len(t)
+}
+
+func (t commandTable) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+func (t commandTable) Less(i, j int) bool {
+	return t[i].Name < t[j].Name
+}
 
 type event struct {
 	id int
@@ -120,6 +135,7 @@ type command struct {
 
 func define(c *command) {
 	commands = append(commands, c)
+	sort.Sort(commands)
 
 	handler := wrap(c)
 	http.Handle(c.Name, handler)
