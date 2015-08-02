@@ -16,6 +16,7 @@ import (
 var commands []*command
 var events chan event
 var ids chan int
+var statuses chan statusTable
 
 type event struct {
 	id int
@@ -38,9 +39,32 @@ func (t eventType) String() string {
 	}
 }
 
+type status struct {
+	id int
+	c *command
+	started time.Time
+}
+
+type statusTable []status
+
+func (t statusTable) removeIndex(i int) statusTable {
+	return append(t[:i], t[i+1:]...)
+}
+
+func (t statusTable) removeId(id int) statusTable {
+	// find index
+	for i, row := range(t) {
+		if row.id == id {
+			return t.removeIndex(i)
+		}
+	}
+	panic(fmt.Sprintf("Unknown id: %d", id))
+}
+
 func main() {
 	events = make(chan event)
 	ids = make(chan int)
+	statuses = make(chan statusTable)
 	
 	defineCommands()
 	go generateIds()
@@ -59,10 +83,19 @@ func generateIds() {
 }
 
 func manageStatuses() {
+	table := make(statusTable, 0)
+
 	for {
 		select {
 		case event := <-events:
 			log.Printf("[%d] %s %s", event.id, event.c.Name, event.t)
+			if event.t == eventTypeBegin {
+				table = append(table,
+					status{event.id, event.c, time.Now().UTC()})
+			} else {
+				table = table.removeId(event.id)
+			}
+		case statuses <- table:
 		}
 	}
 }
@@ -178,6 +211,23 @@ func defineCommands() {
 			}
 
 			time.Sleep(time.Duration(s) * time.Second)			
+		},
+	})
+
+	define(&command{
+		"/status",
+		"List currently running requests",
+		func(w http.ResponseWriter, r *http.Request) {
+			table := <-statuses
+			now := time.Now().UTC()
+			fmt.Fprintln(w, "No\tId\tDur (ms)\tCommand")
+			fmt.Fprintln(w, "--\t--\t--------\t-------")
+			for i, row := range(table) {
+				duration := int64(now.Sub(row.started))
+				duration = duration / int64(time.Millisecond) // truncate
+				fmt.Fprintf(w, "%d\t%d\t%8d\t%s\n",
+					i+1, row.id, duration, row.c.Name)
+			}
 		},
 	})
 }
