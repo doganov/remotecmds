@@ -1,3 +1,5 @@
+// +build darwin linux
+
 package main
 
 import (
@@ -5,10 +7,21 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
 func init() {
+	var say string
+	switch runtime.GOOS {
+	case "darwin":
+		say = "say"
+	case "linux":
+		say = "espeak"
+	default:
+		panic("say: unsupported OS")
+	}
+
 	define(&command{
 		"/say",
 		"Make computer \"say\" something (passed with v parameter)",
@@ -22,7 +35,7 @@ func init() {
 			v := r.Form.Get("v")
 			fmt.Fprintln(w, v)
 
-			cmd := exec.Command("say")
+			cmd := exec.Command(say)
 			cmd.Stdin = strings.NewReader(v)
 			cmd.Stdout = new(bytes.Buffer)
 			err = cmd.Run()
