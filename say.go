@@ -4,7 +4,7 @@ package main
 
 import (
 	"bytes"
-	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -33,14 +33,13 @@ func init() {
 			}
 
 			v := r.Form.Get("v")
-			fmt.Fprintln(w, v)
 
 			cmd := exec.Command(say)
 			cmd.Stdin = strings.NewReader(v)
 			cmd.Stdout = new(bytes.Buffer)
 			err = cmd.Run()
 			if err != nil {
-				fmt.Fprintln(w, err)
+				log.Println(err)
 				httpError(w, http.StatusInternalServerError)
 			}
 		},
