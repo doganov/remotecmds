@@ -31,6 +31,11 @@ type event struct {
 	id int
 	c *command
 	t eventType
+	ocurred time.Time
+}
+
+func (e event) log() {
+	log.Printf("[%d] %s %s", e.id, e.c.Name, e.t)
 }
 
 type eventType int
@@ -102,10 +107,9 @@ func manageStatuses() {
 	for {
 		select {
 		case event := <-events:
-			log.Printf("[%d] %s %s", event.id, event.c.Name, event.t)
 			if event.t == eventTypeBegin {
 				table = append(table,
-					status{event.id, event.c, time.Now().UTC()})
+					status{event.id, event.c, event.ocurred})
 			} else {
 				table = table.removeId(event.id)
 			}
@@ -118,6 +122,12 @@ func httpError(w http.ResponseWriter, code int) {
 	http.Error(w, http.StatusText(code), code)
 }
 
+func sendEvent(id int, c *command, t eventType) {
+	e := event{id, c, t, time.Now().UTC()}
+	e.log()
+	events <- e
+}
+
 func wrap(c *command) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
@@ -126,8 +136,8 @@ func wrap(c *command) http.HandlerFunc {
 		}
 
 		id := <-ids
-		events <- event{id, c, eventTypeBegin}
-		defer func() { events <- event{id, c, eventTypeEnd} }()
+		sendEvent(id, c, eventTypeBegin)
+		defer func() { sendEvent(id, c, eventTypeEnd) }()
 
 		c.Func(w, r)
 	}
