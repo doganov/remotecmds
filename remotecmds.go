@@ -70,6 +70,12 @@ func (t statusTable) removeId(id int) statusTable {
 	panic(fmt.Sprintf("Unknown id: %d", id))
 }
 
+func (t statusTable) clone() statusTable {
+	t2 := make([]status, len(t))
+	copy(t2, t)
+	return statusTable(t2)
+}
+
 func main() {
 	events = make(chan event)
 	ids = make(chan int)
@@ -103,7 +109,7 @@ func manageStatuses() {
 			} else {
 				table = table.removeId(event.id)
 			}
-		case statuses <- table:
+		case statuses <- table.clone():
 		}
 	}
 }
